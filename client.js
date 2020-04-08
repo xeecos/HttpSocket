@@ -1,34 +1,51 @@
 const net = require('net');
+const fs = require("fs");
 const port = 3000;
 const host = 'localhost';
 const client= new net.Socket();
 client.setEncoding('binary');
-function pack(host="localhost",port=3000,urlpath="/",method="GET",message="")
+function jsonPack(host="localhost",port=3000,urlpath="/",method="GET",message="")
 {
     if(typeof message!="string")
     {
         message = JSON.stringify(message);
     }
-    let data = `${method.toUpperCase()} ${urlpath}?a=1 HTTP/1.1\n`
-    data += `Host: ${host}:${port}\n`
-    data += `User-Agent: uart\n`
-    data += `Accept: */*\n`
-    data += `Content-Length: ${message.length}\n`
-    data += `Content-Type: application/json\n`
-    data += `\r\n${message}`
+    let data = `${method.toUpperCase()} ${urlpath}?a=1 HTTP/1.1\r\n`
+    data += `Host: ${host}:${port}\r\n`
+    data += `User-Agent: uart\r\n`
+    data += `Accept: */*\r\n`
+    data += `Content-Length: ${message.length}\r\n`
+    data += `Content-Type: application/json\r\n`
+    data += `\r\n\r\n${message}`
     return data;
+}
+function binaryPack(host="localhost",port=3000,urlpath="/",method="POST",buffer=null)
+{
+    let data = `${method.toUpperCase()} ${urlpath}?a=1 HTTP/1.1\r\n`
+    data += `Host: ${host}:${port}\r\n`
+    data += `User-Agent: uart\r\n`
+    data += `Accept: */*\r\n`
+    data += `Content-Length: ${buffer.length}\r\n`
+    data += `Content-Type: application/octet-stream\r\n`
+    data += `\r\n\r\n`
+    let pack = Buffer.from(data);
+    return Buffer.concat([pack,buffer]);
 }
 client.connect(port,host,function(){
     console.log("connected")
-    let data = pack("localhost",3000,"/post","POST",{hello:"world"});
+    // let data = jsonPack("localhost",3000,"/post","POST",{hello:"world"});
+    // let data = binaryPack("localhost",3000,"/upload","POST",fs.readFileSync("./a.gif"));
+
+    let data = jsonPack("localhost",3000,"/image","GET",{hello:"world"});
     client.write(data);
 });
 client.on('data',(data)=>{
-    console.log('from server:'+ data);
+    console.log(data);
+    console.log(JSON.parse(data.split("\r\n\r\n").pop()));
 });
-client.on('error',function(error){
+client.on('error',(error)=>{
     console.log('error:'+error);
-    client.destory();
+    client.destroy(error);
 });
 client.on('close',function(){
     console.log('closed');
